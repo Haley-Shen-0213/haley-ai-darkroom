@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 專案圖片資料：實際圖片檔案不進版控，只保留目錄結構（.gitkeep）
+data/images/**/*.jpg
+data/images/**/*.jpeg
+data/images/**/*.png
+data/images/**/*.raw
+data/images/**/*.cr2
+data/images/**/*.cr3
+data/images/**/*.nef
+data/images/**/*.arw
+data/images/**/*.tif
+data/images/**/*.tiff
+data/images/**/*.heic
+data/images/**/*.webp
+!data/images/**/.gitkeep
+
+# 分析輸出結果：屬於可重新產生的資料，不進版控，只保留目錄結構
+data/analysis_output/*.json
+data/analysis_output/*.csv
+data/analysis_output/*.md
+!data/analysis_output/.gitkeep

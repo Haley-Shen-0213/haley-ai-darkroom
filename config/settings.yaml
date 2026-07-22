@@ -1,0 +1,44 @@
+# config/settings.yaml
+# 專案可調整參數設定檔。依 CLAUDE.md 規範：機密資訊放 .env，其餘可調整的一般數值放這裡。
+# 程式中應讀取本檔取得路徑與參數，不應在程式碼中寫死。
+
+# 圖片相關路徑：對應 data/images/IMAGE_DATA_GUIDE.md 所描述的目錄結構
+paths:
+  data_root: "data/images"
+
+  # 參考檔案：使用者手動分級後放入對應資料夾，作為分析基準與風格學習樣本來源
+  reference:
+    root: "data/images/reference"
+    basic: "data/images/reference/basic"
+    intermediate: "data/images/reference/intermediate"
+    advanced: "data/images/reference/advanced"
+
+  # 待處理檔案：已匯入但尚未執行分析流程的圖片
+  pending: "data/images/pending"
+
+  # 完成區塊：系統已完成分析／處理的圖片，實際評分寫入資料庫，不靠資料夾表示
+  completed: "data/images/completed"
+
+# 九宮格分析切分比例：詳見 docs/roadmap.md「九宮格切分比例設計」章節
+# 中央第 5 格需涵蓋大部分主體，故不採用三分法(33/33/33)或黃金比例(38.2/23.6/38.2)，
+# 先以 25/50/25 為起始安全值，待累積參考圖片的主體 bounding box 統計後再依長寬比分組調整。
+grid_analysis:
+  default_split_ratio:
+    edge: 0.25    # 上下／左右邊緣格的邊長占比
+    center: 0.50  # 中央格的邊長占比（edge*2 + center = 1.0）
+  # 各長寬比分組的覆寫值，待 Phase 1 統計出資料後填入；目前為空表示沿用 default_split_ratio
+  per_aspect_ratio_group: {}
+
+# 色相區間分析：對應 Lightroom HSL 面板的 8 色相分類（紅/橘黃/黃/綠/水綠/藍/紫/洋紅）
+# 邊界角度（0~360 度）為業界常見近似值，Adobe 未公開官方邊界，之後若發現與實際調色風格對不上可再微調
+color_analysis:
+  saturation_threshold: 0.08   # 飽和度低於此門檻視為接近灰階，不納入色相區間統計，避免灰色雜訊拉低代表性
+  hue_bands:
+    red: [345, 15]       # 跨 0 度環繞
+    orange: [15, 45]
+    yellow: [45, 75]
+    green: [75, 150]
+    aqua: [150, 210]
+    blue: [210, 255]
+    purple: [255, 290]
+    magenta: [290, 345]

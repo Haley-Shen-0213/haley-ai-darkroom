@@ -1,0 +1,13 @@
+# requirements.txt
+# 專案相依套件清單。使用者採用現有系統環境（不建虛擬環境），安裝方式：pip install -r requirements.txt
+
+Pillow>=11.0
+numpy>=2.0
+PyYAML>=6.0
+python-dotenv>=1.0
+
+# ②人臉偵測與辨識、主體偵測所需（見 docs/roadmap.md 3.4 節技術棧選型）
+insightface>=1.0
+onnxruntime>=1.27
+opencv-python>=5.0
+rembg>=2.0
