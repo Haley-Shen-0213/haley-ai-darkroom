@@ -50,10 +50,11 @@ def _aspect_ratio_group(width: int, height: int) -> str:
     return min(KNOWN_ASPECT_RATIOS, key=lambda name: abs(KNOWN_ASPECT_RATIOS[name] - actual_ratio))
 
 
-def _rgb_to_hsl(rgb_array: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def rgb_to_hsl(rgb_array: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # 手動實作 RGB→HSL 向量化轉換（Pillow 沒有內建 HSL 模式，只有 HSV）
     # 回傳色相 hue（0~360 度）、飽和度 saturation（0~1）、明度 lightness（0~1）三個陣列，
     # 選用 HSL 而非 HSV，是為了跟 Lightroom HSL 面板（色相/飽和度/明度）的術語與數值意義一致
+    # 對外公開（無底線前綴）：grid_analysis.py 的九宮格色彩統計也需要同一套轉換，避免另寫一份邏輯
     rgb = rgb_array.astype(np.float32) / 255.0
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     max_c = np.max(rgb, axis=-1)
@@ -88,7 +89,7 @@ def _circular_mean_degrees(hue_values: np.ndarray) -> float:
 
 def _color_stats(image: Image.Image) -> dict:
     # 整張圖的色相／飽和度／明度／對比度平均值，作為「該圖整體色調」的摘要指標
-    hue, saturation, lightness = _rgb_to_hsl(np.asarray(image.convert("RGB")))
+    hue, saturation, lightness = rgb_to_hsl(np.asarray(image.convert("RGB")))
     return {
         "avg_hue": round(_circular_mean_degrees(hue), 2),
         "avg_saturation": round(float(saturation.mean()) * 100, 3),
@@ -110,7 +111,7 @@ def analyze_hue_bands(image: Image.Image, hue_bands: dict, saturation_threshold:
     # 對應 Lightroom HSL 面板的做法：把畫面依色相分成幾個色彩區間（紅/橘黃/黃/綠/水綠/藍/紫/洋紅等，
     # 區間定義來自 config/settings.yaml），分別統計每個區間的色相/飽和度/明度平均值與像素占比
     # 濾掉飽和度過低（接近灰階、無明確色相意義）的像素，避免灰階雜訊拉低各色相區間統計的代表性
-    hue, saturation, lightness = _rgb_to_hsl(np.asarray(image.convert("RGB")))
+    hue, saturation, lightness = rgb_to_hsl(np.asarray(image.convert("RGB")))
     colorful_mask = saturation >= saturation_threshold
     total_pixels = hue.size
 
@@ -130,8 +131,9 @@ def analyze_hue_bands(image: Image.Image, hue_bands: dict, saturation_threshold:
     return bands_result
 
 
-def _dominant_colors(image: Image.Image, top_n: int = 5) -> list[str]:
+def dominant_colors(image: Image.Image, top_n: int = 5) -> list[str]:
     # 用 Pillow 內建色彩量化取代自己寫 k-means，先求堪用；之後若準確度不夠再換更精準的演算法
+    # 對外公開（無底線前綴）：grid_analysis.py 算各格主色時也需要這個函式，top_n=1 即可
     quantized = image.convert("RGB").quantize(colors=64)
     palette = quantized.getpalette()
     color_counts = sorted(quantized.getcolors(), reverse=True, key=lambda item: item[0])
@@ -157,7 +159,7 @@ def analyze_image_basic(file_path: Path, hue_bands: dict, hue_saturation_thresho
             "aspect_ratio_raw": round(width / height, 6),
             "aspect_ratio_group": _aspect_ratio_group(width, height),
             **_color_stats(image),
-            "dominant_colors": _dominant_colors(image),
+            "dominant_colors": dominant_colors(image),
             "hue_bands": analyze_hue_bands(image, hue_bands, hue_saturation_threshold),
             "exif": _extract_exif(image),
             "analysis_model_version": "basic-metadata-v1",

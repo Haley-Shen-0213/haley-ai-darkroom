@@ -1,9 +1,9 @@
 # src/face_detection.py
 from pathlib import Path
 
-import cv2
-import numpy as np
 from insightface.app import FaceAnalysis
+
+from image_io import imread_unicode
 
 # 模組層級快取：InsightFace 模型載入一次要價約 30 秒，若每張圖片都重新載入會拖垮整個批次流程
 _APP: FaceAnalysis | None = None
@@ -19,17 +19,11 @@ def _get_app() -> FaceAnalysis:
     return _APP
 
 
-def _imread_unicode(file_path: Path) -> np.ndarray:
-    # cv2.imread 在 Windows 上無法正確處理含中文的路徑（實測會回傳 None），改用 np.fromfile + cv2.imdecode 繞過
-    file_bytes = np.fromfile(str(file_path), dtype=np.uint8)
-    return cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-
 def detect_faces(file_path: Path) -> list[dict]:
     # 對應 docs/roadmap.md Phase 1「②人臉、主體位置與占比」的人臉部分
     # 目前只取 bbox/信心分數，暫不輸出 512 維人臉特徵向量（embedding）：
     # 那是 Phase 2 人臉比對辨識才需要的欄位，資料庫表也尚未設計對應欄位，先不做用不到的事
-    image = _imread_unicode(file_path)
+    image = imread_unicode(file_path)
     height, width = image.shape[:2]
     faces = _get_app().get(image)
 

@@ -76,6 +76,6 @@
 
 - CPU：Intel Core i9-14900K（24 核 / 32 執行緒）
 - 記憶體：128GB
-- GPU：NVIDIA GeForce RTX 4060（約 4GB 顯示記憶體）—— 本機端訓練或推論大型視覺模型時，**VRAM 為主要限制**，需優先考慮輕量模型、批次大小限制，或評估雲端 GPU 資源。
+- GPU：NVIDIA GeForce RTX 4060（約 8GB 顯示記憶體）—— 本機端訓練或推論大型視覺模型時，VRAM 仍是需要留意的限制，但餘裕比先前記錄的更寬裕，選型時可放寬對模型大小的保守假設。
 - 作業系統：Windows 11 企業版
 - 主要開發工具：Git、Python 3.13.7 / 3.10.6、MySQL Server 9.4、Node.js

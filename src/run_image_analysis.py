@@ -3,6 +3,7 @@ from pathlib import Path
 
 from config import load_settings, resolve_path
 from face_detection import detect_faces
+from grid_analysis import analyze_grid
 from image_metadata import SUPPORTED_EXTENSIONS, analyze_image_basic
 from subject_detection import detect_subject
 
@@ -38,6 +39,30 @@ def _format_hue_band_table(hue_bands: dict) -> list[str]:
     return lines
 
 
+# 中央格固定是第 5 格（grid_analysis._CENTER_GRID_INDEX），對應 docs/roadmap.md 3.2③ 節「第5格(中央格)」的編號規則
+_CENTER_GRID_INDEX = 5
+
+
+def _format_grid_table(grid: dict) -> list[str]:
+    # 九宮格 3x3 逐格明細：grid_index 1~9 依左上到右下編號，第 5 格額外標註主體占比供人工核對
+    edge, center = grid["split_ratio"]["edge"], grid["split_ratio"]["center"]
+    lines = [
+        f"切分比例：邊緣格 {edge*100:.0f}% ／ 中央格 {center*100:.0f}%（依長寬比分組，見 `config/settings.yaml`）",
+        "",
+        "| 格號 | 平均明度 | 平均飽和度 | 主色 | 邊緣密度 | 主體占比(僅第5格) |",
+        "|---|---|---|---|---|---|",
+    ]
+    for cell in grid["cells"]:
+        coverage = grid["center_cell_subject_coverage"]
+        is_center = cell["grid_index"] == _CENTER_GRID_INDEX
+        coverage_display = f"{coverage * 100:.1f}%" if (is_center and coverage is not None) else "-"
+        lines.append(
+            f"| {cell['grid_index']} | {cell['avg_brightness']} | {cell['avg_saturation']} "
+            f"| `{cell['dominant_color']}` | {cell['edge_density']} | {coverage_display} |"
+        )
+    return lines
+
+
 def build_markdown_report(results: list[dict]) -> str:
     # 產出人工可直接閱讀的 Markdown 報告：上半部用表格快速比較，下半部用可摺疊區塊保留完整原始資料
     # （含 EXIF、色相區間分析、人臉/主體偵測結果）
@@ -46,22 +71,26 @@ def build_markdown_report(results: list[dict]) -> str:
         "",
         "# 圖片分析結果",
         "",
-        f"共 {len(results)} 張圖片，對應 `docs/roadmap.md` Phase 1「①圖片基本資料分析」與「②人臉、主體位置與占比」，"
+        f"共 {len(results)} 張圖片，對應 `docs/roadmap.md` Phase 1「①圖片基本資料分析」「②人臉、主體位置與占比」「③九宮格分析」，"
         f"本檔案由 `src/run_image_analysis.py` 自動產生，僅供人工檢視參考，不進版控。",
         "",
         "## 總覽",
         "",
-        "| 檔名 | 尺寸 | 長寬比 | 平均色相 | 平均飽和度 | 平均明度 | 人臉數 | 主體占比 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| 檔名 | 尺寸 | 長寬比 | 平均色相 | 平均飽和度 | 平均明度 | 人臉數 | 主體占比 | 第5格主體占比 |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for item in results:
         name = Path(item["file_path"]).name
         subject = item["subject"]
         subject_ratio = f"{subject['area_ratio'] * 100:.1f}%" if subject else "-"
+        # 第 5 格（中央格）主體占比：驗證九宮格「中央格涵蓋大部分主體」設計目標的關鍵指標，
+        # docs/roadmap.md 3.2③ 節要求每一份分析報告都要包含這個數字，故放進總覽表而非只留在詳細區塊
+        coverage = item["grid"]["center_cell_subject_coverage"]
+        coverage_display = f"{coverage * 100:.1f}%" if coverage is not None else "-"
         lines.append(
             f"| {name} | {item['width_px']}x{item['height_px']} | {item['aspect_ratio_group']} "
             f"| {item['avg_hue']}° | {item['avg_saturation']} | {item['avg_brightness']} "
-            f"| {len(item['faces'])} | {subject_ratio} |"
+            f"| {len(item['faces'])} | {subject_ratio} | {coverage_display} |"
         )
 
     lines += ["", "## 詳細資料（色相區間、人臉/主體偵測、EXIF）", ""]
@@ -108,6 +137,11 @@ def build_markdown_report(results: list[dict]) -> str:
             lines.append("（未偵測到明顯主體）")
         lines.append("")
 
+        lines.append("**九宮格分析**")
+        lines.append("")
+        lines += _format_grid_table(item["grid"])
+        lines.append("")
+
         if item["exif"]:
             lines.append("**EXIF**")
             lines.append("")
@@ -134,6 +168,7 @@ def main() -> None:
         item = analyze_image_basic(path, hue_bands, saturation_threshold)
         item["faces"] = detect_faces(path)
         item["subject"] = detect_subject(path)
+        item["grid"] = analyze_grid(path, item["subject"], item["aspect_ratio_group"], settings)
         results.append(item)
         print(f"已分析：{path.name}（人臉 {len(item['faces'])} 張）")
 
